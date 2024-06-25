@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Smooth Continuous Drawing</title>
+
+<style>
+
+  body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+
+  canvas { background: #000; border: 1px solid white; touch-action: none; /* Prevent default touch actions like scroll and zoom */ }
+
+</style>
+
+</head>
+
+<body>
+
+<canvas id="drawingCanvas"></canvas>
+
+<script>
+
+  const canvas = document.getElementById('drawingCanvas');
+
+  const ctx = canvas.getContext('2d');
+
+
+
+  canvas.width = window.innerWidth;
+
+  canvas.height = window.innerHeight;
+
+
+
+  let drawing = false;
+
+  let drawPoints = []; // Store the draw points
+
+  let fadingInterval;
+
+
+
+  function startDrawing(e) {
+
+    drawing = true;
+
+    const point = getTouchPos(e);
+
+    addPoint(point, true);
+
+    if (!fadingInterval) {
+
+      fadingInterval = setInterval(fadeLines, 50);
+
+    }
+
+  }
+
+
+
+  function stopDrawing() {
+
+    drawing = false;
+
+  }
+
+
+
+  function draw(e) {
+
+    if (!drawing) return;
+
+    const point = getTouchPos(e);
+
+    addPoint(point, false);
+
+    renderCanvas();
+
+  }
+
+
+
+  function getTouchPos(e) {
+
+    const rect = canvas.getBoundingClientRect();
+
+    const touch = e.touches[0] || e.changedTouches[0];
+
+    return {
+
+      x: touch.clientX - rect.left,
+
+      y: touch.clientY - rect.top,
+
+      alpha: 1 // Full opacity
+
+    };
+
+  }
+
+
+
+  function addPoint(point, start) {
+
+    if (start) {
+
+      drawPoints.push([point]);
+
+    } else {
+
+      const lastPoint = drawPoints[drawPoints.length - 1].slice(-1)[0];
+
+      fillInPoints(lastPoint, point);
+
+      drawPoints[drawPoints.length - 1].push(point);
+
+    }
+
+  }
+
+
+
+  function fillInPoints(start, end) {
+
+    const dist = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+
+    const steps = Math.max(10, Math.ceil(dist / 2)); // Increased the number of steps based on the distance
+
+    const xStep = (end.x - start.x) / steps;
+
+    const yStep = (end.y - start.y) / steps;
+
+
+
+    for (let i = 1; i <= steps; i++) {
+
+      drawPoints[drawPoints.length - 1].push({
+
+        x: start.x + xStep * i,
+
+        y: start.y + yStep * i,
+
+        alpha: 1
+
+      });
+
+    }
+
+  }
+
+
+
+  function renderCanvas() {
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#000";
+
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.lineCap = 'round';
+
+    ctx.lineJoin = 'round'; // Ensure all joins are rounded
+
+
+
+    drawPoints.forEach(segment => {
+
+      segment.forEach((point, index) => {
+
+        if (index === 0) return;
+
+        const prevPoint = segment[index - 1];
+
+        ctx.beginPath();
+
+        ctx.moveTo(prevPoint.x, prevPoint.y);
+
+        ctx.lineTo(point.x, point.y);
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${point.alpha})`;
+
+        ctx.lineWidth = 15; // You may adjust the line width for a thicker or thinner line
+
+        ctx.stroke();
+
+      });
+
+    });
+
+  }
+
+
+
+  function fadeLines() {
+
+    let isActive = false;
+
+    drawPoints = drawPoints.map(segment =>
+
+      segment.filter(point => {
+
+        point.alpha -= 0.06; // Adjusted for a slower fade out effect
+
+        if (point.alpha > 0) {
+
+          isActive = true;
+
+          return true;
+
+        }
+
+        return false;
+
+      })
+
+    ).filter(segment => segment.length > 0);
+
+
+
+    renderCanvas();
+
+
+
+    if (!isActive && fadingInterval) {
+
+      clearInterval(fadingInterval);
+
+      fadingInterval = null;
+
+    }
+
+  }
+
+
+
+  canvas.addEventListener('mousedown', startDrawing);
+
+  canvas.addEventListener('mouseup', stopDrawing);
+
+  canvas.addEventListener('mousemove', draw);
+
+  canvas.addEventListener('touchstart', startDrawing);
+
+  canvas.addEventListener('touchend', stopDrawing);
+
+  canvas.addEventListener('touchmove', draw);
+
+
+
+  document.body.addEventListener('touchstart', e => {
+
+    if (e.target === canvas) e.preventDefault();
+
+  }, { passive: false });
+
+  document.body.addEventListener('touchend', e => {
+
+    if (e.target === canvas) e.preventDefault();
+
+  }, { passive: false });
+
+  document.body.addEventListener('touchmove', e => {
+
+    if (e.target === canvas) e.preventDefault();
+
+  }, { passive: false });
+
+
+
+</script>
+
+</body>
+
+</html>
